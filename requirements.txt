@@ -1,0 +1,10 @@
+pytest
+black
+flake8
+requests
+beautifulsoup4
+python-whois
+dnspython
+scapy
+cryptography
+paramiko

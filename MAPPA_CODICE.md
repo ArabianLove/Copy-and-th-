@@ -16,12 +16,17 @@ Qui ci sono i programmi veri e propri.
 *   **`src/system_lockdown.py`** (Sicurezza Interna)
     *   *Cosa fa:* Controlla la *nostra* macchina. Vede quali porte sono aperte e se ci sono file con permessi pericolosi.
 
+*   **`src/github_lockdown.py`** (Protocollo Privacy)
+    *   *Cosa fa:* Usa l'API di GitHub per rendere PRIVATI tutti i repository del tuo account.
+    *   *Uso:* Richiede un token GitHub (PAT). Esegui e conferma per blindare l'account.
+
 ## 📂 Cartella `tests/` (Il Poligono di Tiro)
 Qui ci sono i test automatici per verificare che tutto funzioni senza rompere nulla.
 
 *   `tests/test_osint.py`: Verifica che l'intelligence funzioni.
 *   `tests/test_net_recon.py`: Verifica che lo scanner e i pacchetti funzionino (in simulazione).
 *   `tests/test_lockdown.py`: Verifica che il controllo di sicurezza trovi i problemi.
+*   `tests/test_github_lockdown.py`: Verifica che il protocollo di privacy GitHub funzioni (con simulazione API).
 
 ## 📄 File nella radice (La Plancia di Comando)
 

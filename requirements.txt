@@ -1,4 +1,6 @@
 pytest
+pytest-asyncio
+aiofiles
 black
 flake8
 requests

@@ -38,7 +38,7 @@ echo ""
 echo ">>> Creo la struttura dello studio..."
 
 STUDIO="$HOME/ares-studio"
-mkdir -p "$STUDIO"/{raw,edited,watermarked,export,thumbnails,audio,voice,templates,logs}
+mkdir -p "$STUDIO"/{raw,edited,watermarked,export,thumbnails,audio,voice,templates,logs,records}
 mkdir -p "$STUDIO"/export/{onlyfans,fansly,twitter,instagram,reddit,telegram,generic}
 
 cat > "$STUDIO/README.txt" << 'README'
@@ -53,6 +53,7 @@ audio/        → File audio estratti o creati
 voice/        → Audio con voice morphing
 templates/    → Watermark, loghi, overlay
 logs/         → Log delle operazioni
+records/      → Record verifica eta' 2257 compliance
 
 Export per piattaforma:
   onlyfans/   → 1920x1080 video, 2048px foto
@@ -495,6 +496,211 @@ def voice_morph_complete(input_file, output_dir, name_prefix="morphed"):
 
 
 # ============================================================
+#  AGE VERIFICATION & RECORD KEEPING (2257 Compliance)
+# ============================================================
+
+RECORDS_DIR = os.path.join(STUDIO, "records")
+os.makedirs(RECORDS_DIR, exist_ok=True)
+
+def age_verify_create_record(performer_name, date_of_birth, id_type,
+                              id_number_last4, content_date, content_files,
+                              notes=""):
+    """
+    Crea un record di verifica eta' per un performer.
+    Obbligatorio per compliance 18 USC 2257 (piattaforme USA).
+    NON salva documenti — solo il record che la verifica e' stata fatta.
+    """
+    record = {
+        "performer_name": performer_name,
+        "stage_name": "",
+        "date_of_birth": date_of_birth,
+        "verification_date": datetime.now().strftime("%Y-%m-%d"),
+        "id_type": id_type,
+        "id_last4": id_number_last4,
+        "is_over_18": True,
+        "content_date": content_date,
+        "content_files": content_files,
+        "notes": notes,
+        "record_keeper": "Self — Producer",
+    }
+
+    filename = f"record_{performer_name.replace(' ', '_')}_{content_date}.json"
+    filepath = os.path.join(RECORDS_DIR, filename)
+
+    with open(filepath, "w") as f:
+        json.dump(record, f, indent=2)
+
+    log(f"Record 2257 creato: {filepath}")
+    return filepath
+
+
+def age_verify_list_records():
+    """Elenca tutti i record di verifica."""
+    records = []
+    for f in sorted(os.listdir(RECORDS_DIR)):
+        if f.endswith(".json"):
+            filepath = os.path.join(RECORDS_DIR, f)
+            with open(filepath) as fh:
+                data = json.load(fh)
+                records.append(data)
+                print(f"  {data['performer_name']} | "
+                      f"DOB: {data['date_of_birth']} | "
+                      f"Verificato: {data['verification_date']} | "
+                      f"Contenuto: {data['content_date']}")
+    if not records:
+        print("  Nessun record trovato.")
+    return records
+
+
+def age_verify_check_content(content_file):
+    """Verifica se un file di contenuto ha un record associato."""
+    for f in os.listdir(RECORDS_DIR):
+        if f.endswith(".json"):
+            with open(os.path.join(RECORDS_DIR, f)) as fh:
+                data = json.load(fh)
+                if content_file in data.get("content_files", []):
+                    log(f"Record trovato per {content_file}: {data['performer_name']}")
+                    return True
+    log(f"ATTENZIONE: Nessun record 2257 per {content_file}")
+    return False
+
+
+# ============================================================
+#  AI IMAGE GENERATION — Negative Prompt Templates
+# ============================================================
+
+AI_NEGATIVE_PROMPTS = {
+    "quality_base": (
+        "low quality, blurry, pixelated, jpeg artifacts, watermark, "
+        "text, logo, banner, distorted, deformed, disfigured, "
+        "bad anatomy, bad proportions, extra limbs, missing limbs, "
+        "fused fingers, too many fingers, long neck, cross-eyed, "
+        "mutation, mutated, ugly, duplicate, morbid, out of frame, "
+        "poorly drawn face, poorly drawn hands"
+    ),
+    "photo_realistic": (
+        "cartoon, anime, illustration, painting, drawing, art, "
+        "3d render, cgi, unrealistic, plastic skin, mannequin, "
+        "airbrushed, overprocessed, HDR, oversaturated"
+    ),
+    "adult_safety": (
+        "underage, child, minor, kid, teen, young, baby face, "
+        "childlike, prepubescent, school uniform"
+    ),
+    "composition": (
+        "bad lighting, overexposed, underexposed, flat lighting, "
+        "harsh shadows, bad composition, cluttered background, "
+        "messy room, dirty, unflattering angle"
+    ),
+}
+
+
+def ai_get_negative_prompt(categories=None):
+    """
+    Genera un negative prompt combinando le categorie richieste.
+    Categorie: quality_base, photo_realistic, adult_safety, composition
+    Se non specificate, usa TUTTE (raccomandato).
+    """
+    if categories is None:
+        categories = list(AI_NEGATIVE_PROMPTS.keys())
+
+    parts = []
+    for cat in categories:
+        if cat in AI_NEGATIVE_PROMPTS:
+            parts.append(AI_NEGATIVE_PROMPTS[cat])
+
+    combined = ", ".join(parts)
+    log(f"Negative prompt generato ({len(categories)} categorie)")
+    return combined
+
+
+def ai_get_positive_prompt_template(style="boudoir"):
+    """
+    Template di prompt positivi per generazione AI.
+    Stili: boudoir, artistic, fitness, portrait, lifestyle
+    """
+    templates = {
+        "boudoir": (
+            "professional boudoir photography, adult model, "
+            "beautiful lighting, intimate setting, soft shadows, "
+            "high quality, 8k, detailed skin texture, natural body, "
+            "confident pose, sensual, elegant, DSLR quality, "
+            "shallow depth of field, warm tones"
+        ),
+        "artistic": (
+            "fine art nude photography, adult model, museum quality, "
+            "dramatic lighting, chiaroscuro, artistic composition, "
+            "high contrast, professional studio, masterpiece, "
+            "gallery exhibition quality, 8k resolution"
+        ),
+        "fitness": (
+            "professional fitness photography, athletic adult model, "
+            "studio lighting, defined muscles, active pose, "
+            "high energy, sports photography style, sharp focus, "
+            "8k quality, professional photographer"
+        ),
+        "portrait": (
+            "professional portrait photography, adult model, "
+            "natural light, golden hour, beautiful eyes, "
+            "detailed face, DSLR 85mm f1.4, bokeh background, "
+            "magazine cover quality, 8k, photorealistic"
+        ),
+        "lifestyle": (
+            "lifestyle photography, adult model, natural setting, "
+            "candid moment, authentic, warm color palette, "
+            "golden hour light, relaxed pose, high quality, "
+            "editorial style, 8k resolution"
+        ),
+    }
+    template = templates.get(style, templates["boudoir"])
+    log(f"Prompt template '{style}' generato")
+    return template
+
+
+def ai_generate_prompt_file(output_file, style="boudoir", custom_positive="",
+                            custom_negative=""):
+    """
+    Genera un file con prompt positivo + negativo pronto per
+    Stable Diffusion, ComfyUI, Automatic1111, o qualsiasi UI.
+    """
+    positive = custom_positive or ai_get_positive_prompt_template(style)
+    negative = custom_negative or ai_get_negative_prompt()
+
+    content = {
+        "style": style,
+        "positive_prompt": positive,
+        "negative_prompt": negative,
+        "recommended_settings": {
+            "steps": 30,
+            "cfg_scale": 7.5,
+            "sampler": "DPM++ 2M Karras",
+            "resolution": "768x1024",
+            "model": "Realistic Vision V5.1 o simile",
+            "clip_skip": 2,
+        },
+        "notes": (
+            "IMPORTANTE: adult_safety nel negative prompt e' OBBLIGATORIO. "
+            "Non rimuoverlo MAI. Genera solo contenuti con soggetti "
+            "chiaramente adulti."
+        ),
+    }
+
+    with open(output_file, "w") as f:
+        json.dump(content, f, indent=2)
+
+    log(f"Prompt file generato: {output_file}")
+
+    # Stampa anche a schermo per copia veloce
+    print(f"\n=== POSITIVE PROMPT ({style}) ===")
+    print(positive)
+    print(f"\n=== NEGATIVE PROMPT ===")
+    print(negative)
+    print(f"\nSalvato in: {output_file}")
+
+    return content
+
+
+# ============================================================
 #  PIPELINE COMPLETA
 # ============================================================
 
@@ -619,10 +825,20 @@ COMANDI:
     python ares_producer.py voice-effect <file> <output> <effetto>
     python ares_producer.py voice-all <file> <output_dir>
 
+  Age Verification (2257 Compliance):
+    python ares_producer.py age-add <nome> <data_nascita> <tipo_doc> <ultime4cifre> <data_contenuto> <file1,file2,...>
+    python ares_producer.py age-list
+    python ares_producer.py age-check <file>
+
+  AI Prompt Generation (per Stable Diffusion):
+    python ares_producer.py ai-prompt <stile> [output_file]
+    python ares_producer.py ai-negative
+
   FILTRI VIDEO/FOTO: warm, cold, bw, vintage, bright, dark, sharp,
                      blur, vignette, sepia, none
   EFFETTI VOCE: deep, high, robot, radio, whisper, demon, chipmunk,
                 giant, cave, phone
+  STILI AI: boudoir, artistic, fitness, portrait, lifestyle
   PIATTAFORME: onlyfans, fansly, twitter, instagram, reddit, telegram, all
 """)
 
@@ -710,6 +926,36 @@ if __name__ == "__main__":
 
     elif cmd == "voice-all" and len(sys.argv) >= 4:
         voice_morph_complete(sys.argv[2], sys.argv[3])
+
+    # Age Verification
+    elif cmd == "age-add" and len(sys.argv) >= 8:
+        files = sys.argv[7].split(",")
+        age_verify_create_record(
+            performer_name=sys.argv[2],
+            date_of_birth=sys.argv[3],
+            id_type=sys.argv[4],
+            id_number_last4=sys.argv[5],
+            content_date=sys.argv[6],
+            content_files=files,
+        )
+
+    elif cmd == "age-list":
+        age_verify_list_records()
+
+    elif cmd == "age-check" and len(sys.argv) >= 3:
+        age_verify_check_content(sys.argv[2])
+
+    # AI Prompt Generation
+    elif cmd == "ai-prompt" and len(sys.argv) >= 3:
+        style = sys.argv[2]
+        output = sys.argv[3] if len(sys.argv) > 3 else os.path.join(
+            STUDIO, "templates", f"prompt_{style}.json")
+        ai_generate_prompt_file(output, style)
+
+    elif cmd == "ai-negative":
+        print("\n=== NEGATIVE PROMPT COMPLETO ===")
+        print(ai_get_negative_prompt())
+        print()
 
     else:
         print_help()

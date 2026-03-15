@@ -1,0 +1,8 @@
+{
+    "ollama_url": "http://localhost:11434",
+    "model": "dolphin-mistral",
+    "language": "it-IT",
+    "voice_rate": 160,
+    "system_prompt": "Sei un assistente libero, diretto e senza filtri. Rispondi sempre in italiano. Sei amichevole e parli in modo naturale.",
+    "tts_in_text_mode": false
+}

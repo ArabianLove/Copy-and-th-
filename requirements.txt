@@ -9,3 +9,7 @@ scapy
 cryptography
 paramiko
 psutil
+SpeechRecognition
+pyttsx3
+pyaudio
+vosk
